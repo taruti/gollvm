@@ -1,12 +1,16 @@
 package llvm
 
 /*
+#define __STDC_LIMIT_MACROS
+#define __STDC_CONSTANT_MACROS
 #include <llvm-c/Target.h>
 #include <stdlib.h>
 */
 import "C"
-import "unsafe"
-import "os"
+import (
+	"errors"
+	"unsafe"
+)
 
 type (
 	TargetData struct {
@@ -36,7 +40,6 @@ func InitializeBlackfinTargetInfo()   { C.LLVMInitializeBlackfinTargetInfo() }
 func InitializeSystemZTargetInfo()    { C.LLVMInitializeSystemZTargetInfo() }
 func InitializeMSP430TargetInfo()     { C.LLVMInitializeMSP430TargetInfo() }
 func InitializeXCoreTargetInfo()      { C.LLVMInitializeXCoreTargetInfo() }
-func InitializePIC16TargetInfo()      { C.LLVMInitializePIC16TargetInfo() }
 func InitializeCellSPUTargetInfo()    { C.LLVMInitializeCellSPUTargetInfo() }
 func InitializeMipsTargetInfo()       { C.LLVMInitializeMipsTargetInfo() }
 func InitializeARMTargetInfo()        { C.LLVMInitializeARMTargetInfo() }
@@ -56,7 +59,6 @@ func InitializeBlackfinTarget()   { C.LLVMInitializeBlackfinTarget() }
 func InitializeSystemZTarget()    { C.LLVMInitializeSystemZTarget() }
 func InitializeMSP430Target()     { C.LLVMInitializeMSP430Target() }
 func InitializeXCoreTarget()      { C.LLVMInitializeXCoreTarget() }
-func InitializePIC16Target()      { C.LLVMInitializePIC16Target() }
 func InitializeCellSPUTarget()    { C.LLVMInitializeCellSPUTarget() }
 func InitializeMipsTarget()       { C.LLVMInitializeMipsTarget() }
 func InitializeARMTarget()        { C.LLVMInitializeARMTarget() }
@@ -78,9 +80,9 @@ func InitializeAllTargets() { C.LLVMInitializeAllTargets() }
 // LLVMInitializeNativeTarget - The main program should call this function to
 // initialize the native target corresponding to the host. This is useful
 // for JIT applications to ensure that the target gets linked in correctly.
-var initializeNativeTargetError = os.NewError("Failed to initialize native target")
+var initializeNativeTargetError = errors.New("Failed to initialize native target")
 
-func InitializeNativeTarget() os.Error {
+func InitializeNativeTarget() error {
 	fail := C.LLVMInitializeNativeTarget()
 	if fail == 0 {
 		return nil
@@ -183,14 +185,6 @@ func (td TargetData) ElementContainingOffset(t Type, offset uint64) int {
 // See the method llvm::StructLayout::getElementOffset.
 func (td TargetData) ElementOffset(t Type, element int) uint64 {
 	return uint64(C.LLVMOffsetOfElement(td.C, t.C, C.unsigned(element)))
-}
-
-// Struct layouts are speculatively cached. If a TargetDataRef is alive when
-// types are being refined and removed, this method must be called whenever a
-// struct type is removed to avoid a dangling pointer in this cache.
-// See the method llvm::TargetData::InvalidateStructLayoutInfo.
-func (td TargetData) InvalidateStructLayoutInfo(t Type) {
-	C.LLVMInvalidateStructLayout(td.C, t.C)
 }
 
 // Deallocates a TargetData.

@@ -1,12 +1,17 @@
 package llvm
 
 /*
+#define __STDC_LIMIT_MACROS
+#define __STDC_CONSTANT_MACROS
 #include <llvm-c/Core.h>
 #include <stdlib.h>
+#cgo LDFLAGS: -L/usr/lib/llvm -lLLVM-3.0
 */
 import "C"
-import "unsafe"
-import "os"
+import (
+	"errors"
+	"unsafe"
+)
 
 // TODO: Add comments
 // TODO: Use Go's reflection in order to simplify bindings?
@@ -24,9 +29,6 @@ type (
 	}
 	Type struct {
 		C C.LLVMTypeRef
-	}
-	TypeHandle struct {
-		C C.LLVMTypeHandleRef
 	}
 	Value struct {
 		C C.LLVMValueRef
@@ -62,7 +64,6 @@ type (
 func (c Context) IsNil() bool        { return c.C == nil }
 func (c Module) IsNil() bool         { return c.C == nil }
 func (c Type) IsNil() bool           { return c.C == nil }
-func (c TypeHandle) IsNil() bool     { return c.C == nil }
 func (c Value) IsNil() bool          { return c.C == nil }
 func (c BasicBlock) IsNil() bool     { return c.C == nil }
 func (c Builder) IsNil() bool        { return c.C == nil }
@@ -201,7 +202,6 @@ const (
 	StructTypeKind    = C.LLVMStructTypeKind
 	ArrayTypeKind     = C.LLVMArrayTypeKind
 	PointerTypeKind   = C.LLVMPointerTypeKind
-	OpaqueTypeKind    = C.LLVMOpaqueTypeKind
 	VectorTypeKind    = C.LLVMVectorTypeKind
 	MetadataTypeKind  = C.LLVMMetadataTypeKind
 )
@@ -360,17 +360,6 @@ func (m Module) SetTarget(target string) {
 }
 
 // See Module::addTypeName.
-func (m Module) AddTypeName(name string, ty Type) bool {
-	cname := C.CString(name)
-	result := C.LLVMAddTypeName(m.C, cname, ty.C) != 0
-	C.free(unsafe.Pointer(cname))
-	return result
-}
-func (m Module) DeleteTypeName(name string) {
-	cname := C.CString(name)
-	C.LLVMDeleteTypeName(m.C, cname)
-	C.free(unsafe.Pointer(cname))
-}
 func (m Module) GetTypeByName(name string) (t Type) {
 	cname := C.CString(name)
 	t.C = C.LLVMGetTypeByName(m.C, cname)
@@ -524,22 +513,11 @@ func (t Type) PointerAddressSpace() int { return int(C.LLVMGetPointerAddressSpac
 func (t Type) VectorSize() int          { return int(C.LLVMGetVectorSize(t.C)) }
 
 // Operations on other types
-func (c Context) VoidType() (t Type)   { t.C = C.LLVMVoidTypeInContext(c.C); return }
-func (c Context) LabelType() (t Type)  { t.C = C.LLVMLabelTypeInContext(c.C); return }
-func (c Context) OpaqueType() (t Type) { t.C = C.LLVMOpaqueTypeInContext(c.C); return }
+func (c Context) VoidType() (t Type)  { t.C = C.LLVMVoidTypeInContext(c.C); return }
+func (c Context) LabelType() (t Type) { t.C = C.LLVMLabelTypeInContext(c.C); return }
 
-func VoidType() (t Type)   { t.C = C.LLVMVoidType(); return }
-func LabelType() (t Type)  { t.C = C.LLVMLabelType(); return }
-func OpaqueType() (t Type) { t.C = C.LLVMOpaqueType(); return }
-
-// Operations on type handles
-func (t Type) TypeHandle() (th TypeHandle) {
-	th.C = C.LLVMCreateTypeHandle(t.C)
-	return
-}
-func (t Type) Refine(concrete Type) { C.LLVMRefineType(t.C, concrete.C) }
-func (th TypeHandle) Get() (t Type) { t.C = C.LLVMResolveTypeHandle(th.C); return }
-func (th TypeHandle) Dispose()      { C.LLVMDisposeTypeHandle(th.C) }
+func VoidType() (t Type)  { t.C = C.LLVMVoidType(); return }
+func LabelType() (t Type) { t.C = C.LLVMLabelType(); return }
 
 //-------------------------------------------------------------------------
 // llvm.Value
@@ -689,7 +667,6 @@ func (v Value) IsAInvokeInst() (rv Value)          { rv.C = C.LLVMIsAInvokeInst(
 func (v Value) IsAReturnInst() (rv Value)          { rv.C = C.LLVMIsAReturnInst(v.C); return }
 func (v Value) IsASwitchInst() (rv Value)          { rv.C = C.LLVMIsASwitchInst(v.C); return }
 func (v Value) IsAUnreachableInst() (rv Value)     { rv.C = C.LLVMIsAUnreachableInst(v.C); return }
-func (v Value) IsAUnwindInst() (rv Value)          { rv.C = C.LLVMIsAUnwindInst(v.C); return }
 func (v Value) IsAUnaryInstruction() (rv Value)    { rv.C = C.LLVMIsAUnaryInstruction(v.C); return }
 func (v Value) IsAAllocaInst() (rv Value)          { rv.C = C.LLVMIsAAllocaInst(v.C); return }
 func (v Value) IsACastInst() (rv Value)            { rv.C = C.LLVMIsACastInst(v.C); return }
@@ -913,6 +890,7 @@ func ConstShuffleVector(veca, vecb, mask Value) (rv Value) {
 	rv.C = C.LLVMConstShuffleVector(veca.C, vecb.C, mask.C)
 	return
 }
+
 //TODO
 //LLVMValueRef LLVMConstExtractValue(LLVMValueRef AggConstant, unsigned *IdxList,
 //                                   unsigned NumIdx);
@@ -1175,7 +1153,6 @@ func (b Builder) CreateInvoke(fn Value, args []Value, then, catch BasicBlock, na
 	C.free(unsafe.Pointer(cname))
 	return
 }
-func (b Builder) CreateUnwind() (rv Value)      { rv.C = C.LLVMBuildUnwind(b.C); return }
 func (b Builder) CreateUnreachable() (rv Value) { rv.C = C.LLVMBuildUnreachable(b.C); return }
 
 // Add a case to the switch instruction
@@ -1668,7 +1645,6 @@ func NewModuleProviderForModule(m Module) (mp ModuleProvider) {
 	return
 }
 
-
 // Destroys the module M.
 func (mp ModuleProvider) Dispose() { C.LLVMDisposeModuleProvider(mp.C) }
 
@@ -1676,7 +1652,7 @@ func (mp ModuleProvider) Dispose() { C.LLVMDisposeModuleProvider(mp.C) }
 // llvm.MemoryBuffer
 //-------------------------------------------------------------------------
 
-func NewMemoryBufferFromFile(path string) (b MemoryBuffer, err os.Error) {
+func NewMemoryBufferFromFile(path string) (b MemoryBuffer, err error) {
 	var cmsg *C.char
 	cpath := C.CString(path)
 	fail := C.LLVMCreateMemoryBufferWithContentsOfFile(cpath, &b.C, &cmsg)
@@ -1684,21 +1660,21 @@ func NewMemoryBufferFromFile(path string) (b MemoryBuffer, err os.Error) {
 		err = nil
 	} else {
 		b.C = nil
-		err = os.NewError(C.GoString(cmsg))
+		err = errors.New(C.GoString(cmsg))
 		C.LLVMDisposeMessage(cmsg)
 	}
 	C.free(unsafe.Pointer(cpath))
 	return
 }
 
-func NewMemoryBufferFromStdin() (b MemoryBuffer, err os.Error) {
+func NewMemoryBufferFromStdin() (b MemoryBuffer, err error) {
 	var cmsg *C.char
 	fail := C.LLVMCreateMemoryBufferWithSTDIN(&b.C, &cmsg)
 	if fail == 0 {
 		err = nil
 	} else {
 		b.C = nil
-		err = os.NewError(C.GoString(cmsg))
+		err = errors.New(C.GoString(cmsg))
 		C.LLVMDisposeMessage(cmsg)
 	}
 	return

@@ -1,6 +1,8 @@
 package llvm
 
 /*
+#define __STDC_LIMIT_MACROS
+#define __STDC_CONSTANT_MACROS
 #include <llvm-c/Transforms/Scalar.h>
 */
 import "C"
@@ -14,7 +16,6 @@ func (pm PassManager) AddInstructionCombiningPass()    { C.LLVMAddInstructionCom
 func (pm PassManager) AddJumpThreadingPass()           { C.LLVMAddJumpThreadingPass(pm.C) }
 func (pm PassManager) AddLICMPass()                    { C.LLVMAddLICMPass(pm.C) }
 func (pm PassManager) AddLoopDeletionPass()            { C.LLVMAddLoopDeletionPass(pm.C) }
-func (pm PassManager) AddLoopIndexSplitPass()          { C.LLVMAddLoopIndexSplitPass(pm.C) }
 func (pm PassManager) AddLoopRotatePass()              { C.LLVMAddLoopRotatePass(pm.C) }
 func (pm PassManager) AddLoopUnrollPass()              { C.LLVMAddLoopUnrollPass(pm.C) }
 func (pm PassManager) AddLoopUnswitchPass()            { C.LLVMAddLoopUnswitchPass(pm.C) }

@@ -1,16 +1,18 @@
 package llvm
 
 /*
+#define __STDC_LIMIT_MACROS
+#define __STDC_CONSTANT_MACROS
 #include <llvm-c/BitWriter.h>
 #include <stdlib.h>
 */
 import "C"
-import "os"
+import "errors"
 import "unsafe"
 
-var writeBitcodeToFileErr = os.NewError("Failed to write bitcode to file")
+var writeBitcodeToFileErr = errors.New("Failed to write bitcode to file")
 
-func WriteBitcodeToFile(m Module, filename string) os.Error {
+func WriteBitcodeToFile(m Module, filename string) error {
 	cfilename := C.CString(filename)
 	result := C.LLVMWriteBitcodeToFile(m.C, cfilename)
 	C.free(unsafe.Pointer(cfilename))

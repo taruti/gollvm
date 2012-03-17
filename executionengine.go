@@ -1,12 +1,16 @@
 package llvm
 
 /*
+#define __STDC_LIMIT_MACROS
+#define __STDC_CONSTANT_MACROS
 #include <llvm-c/ExecutionEngine.h>
 #include <stdlib.h>
 */
 import "C"
-import "unsafe"
-import "os"
+import (
+	"errors"
+	"unsafe"
+)
 
 func LinkInJIT()         { C.LLVMLinkInJIT() }
 func LinkInInterpreter() { C.LLVMLinkInInterpreter() }
@@ -57,39 +61,39 @@ func (g GenericValue) Dispose() { C.LLVMDisposeGenericValue(g.C) }
 // llvm.ExecutionEngine
 //-------------------------------------------------------------------------
 
-func NewExecutionEngine(m Module) (ee ExecutionEngine, err os.Error) {
+func NewExecutionEngine(m Module) (ee ExecutionEngine, err error) {
 	var cmsg *C.char
 	fail := C.LLVMCreateExecutionEngineForModule(&ee.C, m.C, &cmsg)
 	if fail == 0 {
 		err = nil
 	} else {
 		ee.C = nil
-		err = os.NewError(C.GoString(cmsg))
+		err = errors.New(C.GoString(cmsg))
 		C.LLVMDisposeMessage(cmsg)
 	}
 	return
 }
 
-func NewInterpreter(m Module) (ee ExecutionEngine, err os.Error) {
+func NewInterpreter(m Module) (ee ExecutionEngine, err error) {
 	var cmsg *C.char
 	fail := C.LLVMCreateInterpreterForModule(&ee.C, m.C, &cmsg)
 	if fail == 0 {
 		err = nil
 	} else {
 		ee.C = nil
-		err = os.NewError(C.GoString(cmsg))
+		err = errors.New(C.GoString(cmsg))
 		C.LLVMDisposeMessage(cmsg)
 	}
 	return
 }
-func NewJITCompiler(m Module, optLevel int) (ee ExecutionEngine, err os.Error) {
+func NewJITCompiler(m Module, optLevel int) (ee ExecutionEngine, err error) {
 	var cmsg *C.char
 	fail := C.LLVMCreateJITCompilerForModule(&ee.C, m.C, C.unsigned(optLevel), &cmsg)
 	if fail == 0 {
 		err = nil
 	} else {
 		ee.C = nil
-		err = os.NewError(C.GoString(cmsg))
+		err = errors.New(C.GoString(cmsg))
 		C.LLVMDisposeMessage(cmsg)
 	}
 	return
